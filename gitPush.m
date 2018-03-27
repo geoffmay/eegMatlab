@@ -1,4 +1,9 @@
-commitMessage = sprintf('gitPush.m-%s', getComputerName);
+function gitPush(commitMessage)
+
+if(~exist('commitMessage'))
+    commitMessage = sprintf('gitPush.m-%s', getComputerName);
+end
+
 preserveFiletimes;
 
 oldfolder = pwd;
@@ -26,3 +31,4 @@ else
 end
 
 cd(oldfolder);
+end
