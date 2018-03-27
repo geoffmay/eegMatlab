@@ -1,8 +1,13 @@
-preserveFiletimes;
+message = sprintf('gitPush.m-%s', getComputerName);
 
+preserveFiletimes;
 oldfolder = pwd;
-cd /home/data/EEG/scripts/bespoke;
-[out1, out2] = system('git add --all');
-[out3, out4] = system('git commit -a');
+cd(fileparts(which('gitPush')));
+[error1, message1] = system('git add --all');
+if(error1)
+    error(sprintf('error using gitAdd: %s', message1));
+end
+a = sprintf('git commit -am %s', message);
+[out3, out4] = system(a);
 [out5, out6] = system('git push');
 cd(oldfolder);
