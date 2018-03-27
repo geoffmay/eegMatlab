@@ -1,6 +1,6 @@
-commitMessage = sprintf('gitPush.m-%s', getComputerName);
-preserveFiletimes;
+message = sprintf('gitPush.m-%s', getComputerName);
 
+preserveFiletimes;
 oldfolder = pwd;
 cd(fileparts(which('gitPush')));
 [error1, message1] = system('git add --all');
@@ -9,9 +9,8 @@ if(error1)
 else
     fprintf('\n%s', message1);
 end
-
-commitCommand = sprintf('git commit -am %s', commitMessage);
-[error2, message2] = system(commitCommand);
+a = sprintf('git commit -am %s', message);
+[error2, message2] = system(a);
 if(error2)
     error(sprintf('error using "git commit": %s', message2));
 else
@@ -19,10 +18,4 @@ else
 end
 
 [error3, message3] = system('git push');
-if(error2)
-    error(sprintf('error using "git push": %s', message3));
-else
-    fprintf('\n%s', message3);
-end
-
 cd(oldfolder);
