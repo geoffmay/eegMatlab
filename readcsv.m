@@ -1,6 +1,6 @@
-function [ t ] = readcsv( filename )
-%READCSV Summary of this function goes here
-%   Detailed explanation goes here
+function [ t ] = readCsv( filename, tryToParseNumbers )
+%READCSV reads a csv file in as a table
+%   It is assumed that the first row corresponds to variable names.
 
 newLine = sprintf('\r\n');
 delim = ',';
@@ -8,148 +8,104 @@ escape = '"';
 
 %read the file
 rawData = fileread(filename);
-%split by newlines
-rows = strsplit(rawData, newLine);
-if(length(rows) == 1)
-    rows = strsplit(rawData, sprintf('\n'));
-    if(length(rows) == 1)
-        rows = strsplit(rawData, sprintf('\r'));
-    end
+
+%remove escaped newlines and delimeters
+newlineInd = strfind(rawData, newLine);
+commaInd = strfind(rawData, delim);
+if(length(newlineInd) == 0)
+    newLine = sprintf('\n');
+    newlineInd = strfind(rawData, newLine);
 end
-clear rawData;
-%trim the newlines that strsplit didn't catch
-for i = 1:length(rows)
-    rows{i} = strrep(rows{i}, sprintf('\n'), '');
-end
-%split cells by delimeter
-cells = cell(1, length(rows));
-variableCount = 0;
-for i = 1:length(rows)
-    indices = strfind(rows{i}, delim);
-    %ignore delimeters that are surrounded by escape characters
-    escapes = strfind(rows{i}, escape);
-    for j = 1:2:length(escapes)
-        remove = find(escapes(j) < indices & indices < escapes(j+1));
-        indices(remove) = [];
-    end
-    if(~isempty(indices))
-        if(i ==1)
-            variableCount = length(indices) + 1;
-        elseif(length(indices) + 1 ~= variableCount)
-            error(sprintf('invalid number of cells in row %d\r\n', i));
-        end
-        rowCells = cell(1, variableCount);
-        text = rows{i};
-        for j = 0:length(indices)
-            if( j < length(indices))
-                nextIndex = indices(j+1)-1;
-            else
-                nextIndex = length(rows{i});
-            end
-            if( j > 0)
-                currentIndex = indices(j)+1;
-            else
-                currentIndex = 1;
-            end
-            if(currentIndex > nextIndex)
-                rowCells{j+1} = '';
-            else
-                if(text(currentIndex) == escape)
-                    if(text(nextIndex) == escape)
-                        currentIndex = currentIndex + 1;
-                        nextIndex = nextIndex - 1;
-                    end
-                end
-                rowCells{j+1} = text(currentIndex:nextIndex);
-            end
-        end
-        cells{i} = rowCells;
-    else
-        if(length(cells) >= i)
-            cells(i) = [];
-        end
-    end
-end
-clear rows;
-%initialize return value
-t = table();
-%this array will keep track of what's numeric to cut down on parsing time
-isNumeric = zeros(1,variableCount);
-%start at row 2, assuming first row is variable names
-for j = 2:length(cells)
-    row = cells{j};
-    for i = 1:length(cells{j})
-        number = 0;
-        %figure out what's numeric on the first pass
-        if(j == 2)
-            number = str2double(row{i});
-            if(length(number) > 0)
-                 if(~isnan(number))
-                    isNumeric(i) = 1;
-                 elseif(strcmp(lower(row{i}),'nan')) 
-                    isNumeric(i) = 1;
-                 end
-            end
-        end
-        %populate the table
-        if(isNumeric(i))
-            if(j > 2)
-                number = str2double(row{i});
-                if(length(number) == 0)
-                    number = NaN;
-                end
-            end
-            if(j ==5)
-                dummy = 1;
-            end
-            t{j-1,i} = number;
+escapedNewlineInd = false(size(newlineInd));
+escapedCommaInd = false(size(commaInd));
+inQuotes = false;
+for i = 1:length(rawData)
+    if(rawData(i) == '"')
+        if(~inQuotes)
+            inQuotes = true;
         else
-            t{j-1,i} = row(i);
+            inQuotes = false;
         end
-        %name the table variables on the first pass
-        %(variables can't be named until the first element is added)
-        if( j == 2)            
-            topRow = cells{1};
-            rowName = matlabSafeVariableName(topRow{i});
-            newName = rowName;
-            number = 0;
-            while(sum(strcmp(t.Properties.VariableNames, newName)))
-                number = number + 1;
-                newName = strcat(rowName, num2str(number));
-            end
-            t.Properties.VariableNames{i} = newName;
+    elseif(rawData(i) == ',')
+        if(inQuotes)
+            escapedCommaInd(find(commaInd == i)) = true;
         end
-    end
-    %allocate the rest of the table to prevent repeated allocations
-    if(j==2)
-        t{length(cells)-1,1} = t{1,1};
-    end
-        display(strcat('j:', num2str(j),' i:', num2str(i)));
-end
-
-end
-
-function [ variableName ] = matlabSafeVariableName( variableName )
-%MATLABSAFEVARIABLENAME replace unsafe characters
-%   Replaces [#] [.] [$] [ ] respectively with 
-%   [NUM] [POINT] [DOLLAR] [_]
-            variableName = strrep(variableName, '#', 'NUM');
-            variableName = strrep(variableName, '.', 'POINT');
-            variableName = strrep(variableName, '$', 'DOLLAR');
-            variableName = strrep(variableName, ' ', '_');
-            variableName = strrep(variableName, '-', '_');
-            variableName = strrep(variableName, '>', 'GreaterThan');
-            variableName = strrep(variableName, '<', 'LessThan');
-            
-            if(length(variableName > 0))
-            unsafestarts = {'_','0','1','2','3','4','5','6','7','8','9'};
-            if(sum(strcmp(unsafestarts, variableName(1))))
-                variableName = strcat('a', variableName);
-            end
+    elseif(rawData(i) == sprintf('\n'))
+        if(inQuotes)
+            if(length(newLine) == 1)
+                escapedNewlineInd(find(newlineInd == i)) = true;
             else
-                variableName = 'a';
+                escapedNewlineInd(find(newlineInd == i-1)) = true;
             end
-            if(length(variableName) > namelengthmax)
-                variableName = variableName(1:namelengthmax);
-            end
+        end
+    end
 end
+commaInd(escapedCommaInd) = [];
+newlineInd(escapedNewlineInd) = [];
+
+
+%add beginning of file as fake newline
+newlineInd = [1-length(newLine), newlineInd];
+%add to end of file if the last line isn't blank
+if(length(rawData) > max(newlineInd) + length(newLine) - 1)
+    newlineInd = [newlineInd, length(rawData)+1];
+end
+t = table();
+%iterate through each row
+for i = 1:(length(newlineInd)-1)
+    rowStart = newlineInd(i) + length(newLine) - 1;
+    rowEnd = newlineInd(i+1);
+    %take cells from within the row
+    commas = commaInd((commaInd > rowStart) & (commaInd < rowEnd));
+    commas = [rowStart, commas, rowEnd];
+    for j = 1:(length(commas)-1)
+        %fprintf('\ni=%d, j=%d', i, j);
+        cellStart = commas(j)+1;
+        cellEnd = commas(j+1)-1;
+        if(cellEnd >= cellStart)
+            item = rawData(cellStart:cellEnd);
+            %remove unescaped quotes
+            if(item(1) == '"' && item(end) == '"')
+                item = item(2:end-1);
+                %replace double quotes (escaped) with single (unescaped)
+                item = strrep(item, '""', '"');
+            end
+        else
+            item = '';
+        end
+        %first row contains column names
+        if(i == 1)
+            variableNames{j} = matlabSafeVariableName(item);
+        %second row is used to determine if the column is numeric
+        elseif(i == 2)
+            number = str2double(item);
+            if(length(number) > 0 && ~isnan(number))
+                isNumeric(j) = 1;
+                t{i-1, j} = number;
+            else
+                t{i-1, j} = {item};
+            end
+        %other rows simply supply data
+        else
+            if(isNumeric(j))
+                number = str2double(item);
+                t{i-1, j} = number;
+            else
+                t{i-1, j} = {item};
+            end
+        end
+    end
+    %perform initialization during early steps
+    if(i == 1)
+        isNumeric = false(size(variableNames));
+    elseif(i == 2)
+        t.Properties.VariableNames = variableNames;
+        t{1:length(newlineInd) - 2,1} = t{1,1};
+    end
+end
+
+
+
+
+end
+

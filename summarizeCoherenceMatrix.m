@@ -1,4 +1,4 @@
-function [ summary ] = summarizeCoherenceMatrix( cohInfo, intervalSize )
+function [ sumsmary ] = summarizeCoherenceMatrix( cohInfo, intervalSize )
 %SUMMARIZECOHERENCE Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -7,9 +7,17 @@ if(~exist('intervalSize', 'var'))
 end
 
 summary.meanValue = mean(cohInfo.matrix,1);
-summary.stdValue = std(cohInfo.matrix,1);
-summary.skewValue = skewness(cohInfo.matrix,1);
-summary.kurtosisValue = kurtosis(cohInfo.matrix,1);
+summary.stdValue = std(cohInfo.matrix, 0, 1);
+try
+  summary.skewValue = skewness(cohInfo.matrix, 1, 1);
+catch ex
+  summary.skewValue = ex;
+end
+try
+  summary.kurtosisValue = kurtosis(cohInfo.matrix, 1, 1);
+catch ex
+  summary.kurtosisValue = ex;
+end
 summary.labels = cohInfo.labels;
 slice.startTime = 0;
 slice.endTime = intervalSize;

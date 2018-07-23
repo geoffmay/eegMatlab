@@ -1,4 +1,4 @@
-function [ summary ] = performReliabilityAnalysis2( surfCoh, outPath )
+function [ summary ] = performReliabilityAnalysis4( surfCoh, outPath )
 %PERFORMRELIABILITYANALYSIS Summary of this function goes here
 %   Detailed explanation goes here
 % 
