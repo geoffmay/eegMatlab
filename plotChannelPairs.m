@@ -1,4 +1,4 @@
-function plotChannelPairs(labelPairs, pairWeights, colorLimits, drawColorbar, fig)
+function fig = plotChannelPairs(labelPairs, pairWeights, colorLimits, drawColorbar, fig)
 %PLOTCHANNELPAIRS Plots pairs of channels using the 'line' function.
 %   The function attempts to minimize collinearity by using "jitter", which
 %   skews the x values away from the center based on how far the y values
@@ -144,6 +144,7 @@ if(exist('pairWeights', 'var'))
         drawColorbar = true;
     end
     if(drawColorbar)
+      colormap('jet');
         colorbar();        
     end
 end

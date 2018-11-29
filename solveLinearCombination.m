@@ -29,7 +29,8 @@ end
 nIteration = 1000;
 
 %the number of guesses per iteration
-guessesPerIteration = 100;
+% guessesPerIteration = 100;
+guessesPerIteration = 9;
 initialGuessRangeRatio = 10;
 
 errorSize = zeros(size(matrix, 1));

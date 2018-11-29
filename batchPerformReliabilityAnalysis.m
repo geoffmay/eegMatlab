@@ -65,7 +65,7 @@ for fileCounter = 1:length(fileNames)
             data.summary.surfLabels = data.surfCoh.labels;
             summary = data.summary;
             path = fullfile(outputFolder, [file, '.mat']);
-            save(path, 'summary');
+            save(path, 'summary', '-v7.3');
             delete(intermediateFilename);
             processThisFile = false;
           end

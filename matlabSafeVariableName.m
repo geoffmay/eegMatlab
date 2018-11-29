@@ -16,6 +16,7 @@ function [ variableName ] = matlabSafeVariableName( variableName )
             variableName = strrep(variableName, '\', '_');
             variableName = strrep(variableName, '(', '_');
             variableName = strrep(variableName, ')', '_');
+            variableName = strrep(variableName, ',', '');
             
             if(length(variableName > 0))
             unsafestarts = {'_','0','1','2','3','4','5','6','7','8','9'};

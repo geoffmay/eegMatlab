@@ -1,22 +1,27 @@
-function [ phaseSlopeTopographies ] = phaseSlopeTimecourse( EEG, frequencyLimits )
+function [ phaseSlopeTopographies ] = phaseSlopeTimecourse1( EEG, frequencyLimits )
 %PHASESLOPETIMECOURSE Summary of this function goes here
 %   Detailed explanation goes here
 
 if(~exist('frequencyLimits', 'var'))
   frequencyLimits = [1, EEG.srate / 2 - 1; ...
-    1, 4;
-    5, 8;
-    8, 12;
-    12, 15; 
-    15, 20;
-    20, 100];
+%     1, 4; ...
+%     5, 8; ...
+%     8, 12; ...
+%     12, 15; ...
+%     15, 20; ...
+    20, 60];
   
 end
+windowDuration = 1/20;
 
 saveResiduals = false;
 debug = false;
+
 sampleRate = EEG.srate;
-windowSize = sampleRate;  %1 second window
+windowSize = floor(sampleRate * windowDuration);  
+frequencyLimits = floor(frequencyLimits .* windowDuration);
+frequencyLimits(frequencyLimits == 0) = 1;
+
 windowIncrement = 1;
 fftIndices = 1:windowSize/2;
 totalWindows = floor(size(EEG.data,2) / windowIncrement);
@@ -30,7 +35,9 @@ phaseSlopeTopographies.signalToNoiseRatio = NaN(totalWindows, 1);
 phaseSlopes = NaN(chanCount,chanCount);
 sampleCounter = 1;
 windowCounter = 1;
+fprintf('  (------')
 while(sampleCounter + windowSize < size(EEG.data,2))
+  fprintf('\b\b\b\b\b\b%05d)', windowCounter)
   endIndex = sampleCounter + windowSize - 1;
   if(debug)
     fprintf('\n(%s) %d of %d', char(datetime), sampleCounter + windowSize, size(EEG.data,2));
@@ -110,7 +117,7 @@ while(sampleCounter + windowSize < size(EEG.data,2))
   windowCounter = windowCounter + 1;
 end
 
-save('/home/data/EEG/processed/Oregon/phaseSlopeWork.mat', '-v7.3');
+%save('/home/data/EEG/processed/Oregon/phaseSlopeWork.mat', '-v7.3');
 
 phaseSlopeTopographies.chanlocs = EEG.chanlocs;
 phaseSlopeTopographies.filename = EEG.filename;

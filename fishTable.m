@@ -34,7 +34,7 @@ for i = 1:size(changePca.SCORE, 2)
   [changeRhos(i), changePs(i)] = corr(x(keep),y(keep));
 end
 changePca.EXPLAINED
-changePs
+
 
 %debug
 %end debug
@@ -91,6 +91,7 @@ kendallPs = kendallPs';
 spearmanPs = spearmanPs';
 
 tab = table(columns, pearsonRhos, kendallRhos, spearmanRhos, pearsonPs, kendallPs, spearmanPs);
+sortTab = sortrows(tab, 'pearsonPs');
 
 end
 

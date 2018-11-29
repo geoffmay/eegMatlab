@@ -1,4 +1,4 @@
-function masterTable = openRobiData()
+%function masterTable = openRobiData()
 
 
 psychFolder = '/home/data/EEG/data/ROBI/psychTests/';
@@ -347,99 +347,96 @@ for eegFileCounter = 1:length(eegFiles)
 end
 toc;
 
-%put z score data in the folder
-
-
-tic;
-eegFolder = '/home/data/EEG/processed/Robi/summaries/';
-eegFiles = dir(eegFolder);
-eegFiles([eegFiles.isdir]) = [];
-eegBaseline = cellfun(@length, strfind({eegFiles.name}, 'baseline eyes open'))>0;
-eegBaseline = eegBaseline & ([eegFiles.bytes] > 4000000);
-eegOutcome = cellfun(@length, strfind({eegFiles.name}, 'outcome eyes open'))>0;
-eegOutcome = eegOutcome & ([eegFiles.bytes] > 3706514);
-
-%put eeg measures (power, asymmetry, coherence) in the table
-firstFile = true;
-for eegFileCounter = 1:length(eegFiles)
-  processThis = false;
-  if(eegBaseline(eegFileCounter))
-    timepoint = 'baseline';
-    processThis = true;
-  elseif(eegOutcome(eegFileCounter))
-    timepoint = 'exit';
-    processThis = true;
-  end
-  if(processThis)
-    eegData = load(fullfile(eegFolder, eegFiles(eegFileCounter).name));
-    if(firstFile)
-      %allocate the memory in the table
-      timepointCount = 3;
-      baselineFirstColumn = size(masterTable, 2)+1;
-      outcomeFirstColumn = size(masterTable, 2)+length(eegData.measureSummary.labels)+1;
-      changeFirstColumn = size(masterTable, 2)+length(eegData.measureSummary.labels)*2+1;
-      block = NaN(size(masterTable, 1), length(eegData.measureSummary.labels) * timepointCount);
-      masterTable{:,end+1:end+size(block,2)} = block;
-      %put titles in for each column
-      for chanCounter = 1:length(eegData.measureSummary.labels)
-        fprintf('\neeg column title %d of %d', chanCounter, length(eegData.measureSummary.labels));
-        titleSuffix = eegData.measureSummary.labels{chanCounter};
-        titleSuffix = strrep(titleSuffix, ' ', '_');
-        titleSuffix = strrep(titleSuffix, '-', '_');
-        baselineTitle = ['baseline_', titleSuffix];
-        outcomeTitle = ['exit_', titleSuffix];
-        changeTitle = ['change_', titleSuffix];
-        
-        %         baselineTitle = ['baseline_', eegData.measureSummary.labels{titleCounter}];
-        %         baselineTitle = strrep(baselineTitle, ' ', '_');
-        %         baselineTitle = strrep(baselineTitle, '-', '_');
-        %baselineTitle = matlabSafeVariableName(baselineTitle);
-        %         outcomeTitle = ['exit_', eegData.measureSummary.labels{titleCounter}];
-        %         outcomeTitle = strrep(outcomeTitle, ' ', '_');
-        %         outcomeTitle = strrep(outcomeTitle, '-', '_');
-        %         changeTitle = ['change_', eegData.measureSummary.labels{titleCounter}];
-        %         changeTitle = strrep(changeTitle, ' ', '_');
-        %         changeTitle = strrep(changeTitle, '-', '_');
-        %outcomeTitle = matlabSafeVariableName(outcomeTitle);
-        masterTable.Properties.VariableNames{chanCounter+baselineFirstColumn-1} = baselineTitle;
-        masterTable.Properties.VariableNames{chanCounter+outcomeFirstColumn-1} = outcomeTitle;
-        masterTable.Properties.VariableNames{chanCounter+changeFirstColumn-1} = changeTitle;
-      end
-      firstFile = false;
-    end
-    subjectId = eegFiles(eegFileCounter).name(1:8);
-    subjectId = strrep(subjectId, '_', '');
-    dataRow = find(strcmp(masterTable{:,1}, subjectId));
-    if(strcmp(timepoint, 'baseline'))
-      firstColumn = baselineFirstColumn -1;
-      otherColumn = outcomeFirstColumn -1;
-    elseif(strcmp(timepoint, 'exit'))
-      firstColumn = outcomeFirstColumn -1;
-      otherColumn = baselineFirstColumn -1;
-    end
-    sample = masterTable{dataRow, firstColumn+1};
-    otherSample = masterTable{dataRow, otherColumn+1};
-    if(isnan(sample))
-      if(~isnan(otherSample))
-        nowComplete = true;
-      else
-        nowComplete = false;
-      end
-      for columnCounter = 1:length(eegData.measureSummary.labels)
-        fprintf('\neeg file %d of %d, column %d of %d', eegFileCounter, length(eegFiles), columnCounter, length(eegData.measureSummary.labels));
-        columnIndex = firstColumn + columnCounter;
-        masterTable{dataRow, columnIndex} = eegData.measureSummary.meanValue(columnCounter);
-        if(nowComplete)
-          baseVal = masterTable{dataRow, baselineFirstColumn -1+columnCounter};
-          exitVal = masterTable{dataRow, outcomeFirstColumn -1+columnCounter};
-          changeVal = exitVal-baseVal;
-          masterTable{dataRow, changeFirstColumn -1+columnCounter} = changeVal;
-        end
-      end
-    end
-  end
-end
-toc;
+% %put phase slope data in the folder
+% tic;
+% eegFolder = '/home/data/EEG/processed/Robi/summaries/';
+% eegFiles = dir(eegFolder);
+% eegFiles([eegFiles.isdir]) = [];
+% eegBaseline = cellfun(@length, strfind({eegFiles.name}, 'baseline eyes open'))>0;
+% eegBaseline = eegBaseline & ([eegFiles.bytes] > 4000000);
+% eegOutcome = cellfun(@length, strfind({eegFiles.name}, 'outcome eyes open'))>0;
+% eegOutcome = eegOutcome & ([eegFiles.bytes] > 3706514);
+% 
+% firstFile = true;
+% for eegFileCounter = 1:length(eegFiles)
+%   processThis = false;
+%   if(eegBaseline(eegFileCounter))
+%     timepoint = 'baseline';
+%     processThis = true;
+%   elseif(eegOutcome(eegFileCounter))
+%     timepoint = 'exit';
+%     processThis = true;
+%   end
+%   if(processThis)
+%     eegData = load(fullfile(eegFolder, eegFiles(eegFileCounter).name));
+%     if(firstFile)
+%       %allocate the memory in the table
+%       timepointCount = 3;
+%       baselineFirstColumn = size(masterTable, 2)+1;
+%       outcomeFirstColumn = size(masterTable, 2)+length(eegData.measureSummary.labels)+1;
+%       changeFirstColumn = size(masterTable, 2)+length(eegData.measureSummary.labels)*2+1;
+%       block = NaN(size(masterTable, 1), length(eegData.measureSummary.labels) * timepointCount);
+%       masterTable{:,end+1:end+size(block,2)} = block;
+%       %put titles in for each column
+%       for chanCounter = 1:length(eegData.measureSummary.labels)
+%         fprintf('\neeg column title %d of %d', chanCounter, length(eegData.measureSummary.labels));
+%         titleSuffix = eegData.measureSummary.labels{chanCounter};
+%         titleSuffix = strrep(titleSuffix, ' ', '_');
+%         titleSuffix = strrep(titleSuffix, '-', '_');
+%         baselineTitle = ['baseline_', titleSuffix];
+%         outcomeTitle = ['exit_', titleSuffix];
+%         changeTitle = ['change_', titleSuffix];
+%         
+%         %         baselineTitle = ['baseline_', eegData.measureSummary.labels{titleCounter}];
+%         %         baselineTitle = strrep(baselineTitle, ' ', '_');
+%         %         baselineTitle = strrep(baselineTitle, '-', '_');
+%         %baselineTitle = matlabSafeVariableName(baselineTitle);
+%         %         outcomeTitle = ['exit_', eegData.measureSummary.labels{titleCounter}];
+%         %         outcomeTitle = strrep(outcomeTitle, ' ', '_');
+%         %         outcomeTitle = strrep(outcomeTitle, '-', '_');
+%         %         changeTitle = ['change_', eegData.measureSummary.labels{titleCounter}];
+%         %         changeTitle = strrep(changeTitle, ' ', '_');
+%         %         changeTitle = strrep(changeTitle, '-', '_');
+%         %outcomeTitle = matlabSafeVariableName(outcomeTitle);
+%         masterTable.Properties.VariableNames{chanCounter+baselineFirstColumn-1} = baselineTitle;
+%         masterTable.Properties.VariableNames{chanCounter+outcomeFirstColumn-1} = outcomeTitle;
+%         masterTable.Properties.VariableNames{chanCounter+changeFirstColumn-1} = changeTitle;
+%       end
+%       firstFile = false;
+%     end
+%     subjectId = eegFiles(eegFileCounter).name(1:8);
+%     subjectId = strrep(subjectId, '_', '');
+%     dataRow = find(strcmp(masterTable{:,1}, subjectId));
+%     if(strcmp(timepoint, 'baseline'))
+%       firstColumn = baselineFirstColumn -1;
+%       otherColumn = outcomeFirstColumn -1;
+%     elseif(strcmp(timepoint, 'exit'))
+%       firstColumn = outcomeFirstColumn -1;
+%       otherColumn = baselineFirstColumn -1;
+%     end
+%     sample = masterTable{dataRow, firstColumn+1};
+%     otherSample = masterTable{dataRow, otherColumn+1};
+%     if(isnan(sample))
+%       if(~isnan(otherSample))
+%         nowComplete = true;
+%       else
+%         nowComplete = false;
+%       end
+%       for columnCounter = 1:length(eegData.measureSummary.labels)
+%         fprintf('\neeg file %d of %d, column %d of %d', eegFileCounter, length(eegFiles), columnCounter, length(eegData.measureSummary.labels));
+%         columnIndex = firstColumn + columnCounter;
+%         masterTable{dataRow, columnIndex} = eegData.measureSummary.meanValue(columnCounter);
+%         if(nowComplete)
+%           baseVal = masterTable{dataRow, baselineFirstColumn -1+columnCounter};
+%           exitVal = masterTable{dataRow, outcomeFirstColumn -1+columnCounter};
+%           changeVal = exitVal-baseVal;
+%           masterTable{dataRow, changeFirstColumn -1+columnCounter} = changeVal;
+%         end
+%       end
+%     end
+%   end
+% end
+% toc;
 
 %put phase slope measures in the table
 % [chanlabels, chanlocs] = antChannelLocs;
@@ -448,9 +445,44 @@ firstFile = true;
 zScoreFolder = '/home/data/EEG/processed/Robi/zScoreSummaries';
 zScoreFiles = dir(zScoreFolder);
 zScoreBaseline = cellfun(@length, strfind({zScoreFiles.name}, 'baseline_eyes_open'))>0;
-%zScoreBaseline = zScoreBaseline & ([eegFiles.bytes] > 4000000);
 zScoreOutcome = cellfun(@length, strfind({zScoreFiles.name}, 'outcome_eyes_open'))>0;
-%zScoreOutcome = zScoreOutcome & ([eegFiles.bytes] > 3706514);
+
+firstSession = false(size(zScoreFiles));
+lastSession = false(size(zScoreFiles));
+for i = 1:100
+  target = sprintf('ROBI_%03d-tx_', i);
+  match = find(cellfun(@length, strfind({zScoreFiles.name}, target)));
+  if(length(match) > 0)
+    maxInd = -1; 
+    maxValue = realmin;
+    minInd = -1;
+    minValue = realmax;
+    for j = 1:length(match)
+      ind = match(j);
+      name = zScoreFiles(ind).name;
+      numberText = name((length(target)+1):end);
+      dashInd = strfind(numberText, '-');
+      numberText(dashInd:end) = [];
+      number = str2num(numberText);
+      if(number > maxValue)
+        maxInd = ind;
+        maxValue = number;
+      end
+      if(number < minValue)
+        minInd = ind;
+        minValue = number;
+      end
+    end
+    if(minInd > -1)
+      firstSession(minInd) = true;
+    end
+    if(maxInd > -1)
+      lastSession(maxInd) = true;
+    end
+  end
+end
+
+%todo: use first and last sessions to populate table.
 
 for zScoreFileCounter = 1:length(zScoreFiles)
   processThis = false;
@@ -474,14 +506,17 @@ for zScoreFileCounter = 1:length(zScoreFiles)
       masterTable{:,end+1:end+size(block,2)} = block;
       %set titles
       for chanCounter = 1:length(zScoreData.zScoreSummary.labels)
-        fprintf('\neeg column title %d of %d', chanCounter, length(zScoreData.zScoreSummary.labels));
-        %         titleSuffix = eegData.measureSummary.labels{chanCounter};
+        fprintf('\nzScore column title %d of %d', chanCounter, length(zScoreData.zScoreSummary.labels));
+        %         titleSuffix = zScoreData.measureSummary.labels{chanCounter};
         titleSuffix = zScoreData.zScoreSummary.labels{chanCounter};
         titleSuffix = strrep(titleSuffix, ' ', '_');
         titleSuffix = strrep(titleSuffix, '-', '_');
         baselineTitle = ['zScore_baseline_', titleSuffix];
         outcomeTitle = ['zScore_exit_', titleSuffix];
         changeTitle = ['zScore_change_', titleSuffix];
+        baselineTitle = matlabSafeVariableName(baselineTitle);
+        outcomeTitle = matlabSafeVariableName(outcomeTitle);
+        changeTitle = matlabSafeVariableName(changeTitle);
         
         masterTable.Properties.VariableNames{chanCounter+baselineFirstColumn-1} = baselineTitle;
         masterTable.Properties.VariableNames{chanCounter+outcomeFirstColumn-1} = outcomeTitle;
@@ -490,7 +525,7 @@ for zScoreFileCounter = 1:length(zScoreFiles)
       firstFile = false;
     end
     %find destination row
-    subjectId = eegFiles(eegFileCounter).name(1:8);
+    subjectId = zScoreFiles(zScoreFileCounter).name(1:8);
     subjectId = strrep(subjectId, '_', '');
     dataRow = find(strcmp(masterTable{:,1}, subjectId));
     %find destination column

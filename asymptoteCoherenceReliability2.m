@@ -3,9 +3,13 @@ function [ summary ] = asymptoteCoherenceReliability2( surfCoh, frameCount )
 %RESAMPLECOHERENCERELIABILITY Summary of this function goes here
 %   Detailed explanation goes here
 
+plotDeltaFractionVsBatchSize = 1;
+
 batchSize = 100;
 queueLength = 10;
 minDeltaFraction = 0.001;
+maxIterations = 10000;
+useDynamicIterations = false;
 
 %(31-Jan-2018 06:10:36) iteration 1000: avgDelFraction 0.015277
 %(31-Jan-2018 06:12:25) iteration 7600: avgDelFraction 0.000992
@@ -51,7 +55,8 @@ if(frameCount > maxTroubleFreeSubsampleLength)
 end
 start1Ind = find(start1Mask);
 
-while(~deltaFractionBelowThreshold)
+finishedOuterLoop = false;
+while(~finishedOuterLoop)
   %resample
   for repCounter = 1:batchSize
     %     good = false;
@@ -102,12 +107,38 @@ while(~deltaFractionBelowThreshold)
     meanDel = mean(delAvg);
     delDelFraction = meanDelDel ./ meanDel;
     avgDelFraction = nanmean(delDelFraction, 2);
+    if(plotDeltaFractionVsBatchSize > 0)
+      delFractionPlot(plotDeltaFractionVsBatchSize, :) = delDelFraction';
+      plotDeltaFractionVsBatchSize = plotDeltaFractionVsBatchSize + 1;
+    end
     %fprintf('\n(%s) iteration %d: avgDelFraction %f', char(datetime), iterationCounter, avgDelFraction);
     if(avgDelFraction < minDeltaFraction)
       deltaFractionBelowThreshold = true;
     end
   end
+  if(useDynamicIterations)
+    if(deltaFractionBelowThreshold)
+      finishedOuterLoop = true;
+    end
+  else
+    if(iterationCounter >= maxIterations)
+      finishedOuterLoop = true;
+    end
+  end
 end
+
+i = 0;
+if(plotDeltaFractionVsBatchSize > 0)
+  i = i + 1;
+  close all;
+  delFractionX = (1:size(delFractionPlot,1)).*100;
+  plot(delFractionX, nanmean(delFractionPlot, 2).*100);
+  title('Marginal change in difference between qEEG values');
+  xlabel('number of random resamplings');
+  ylabel('percent change from previous batch');
+end
+
+
 delStd = NaN(1,size(delArray,2));
 checkDelAvg = NaN(1,size(delArray,2));
 prc.percentileKeys = [1, sqrt(.05)*100, 5, 95, sqrt(.95)*100, 99];

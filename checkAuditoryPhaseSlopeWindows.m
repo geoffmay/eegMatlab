@@ -1,7 +1,11 @@
 load('/home/data/EEG/data/Oregon/wahbehVariables.mat');
 
 inputFolders = {'/home/data/EEG/data/Oregon/Auditory1', '/home/data/EEG/data/Oregon/Auditory2'};
-outputFolder = '/home/data/EEG/processed/Oregon/phaseSlope';
+outputFolder = '/home/data/EEG/processed/Oregon/phaseSlopeWindows';
+
+if(~exist(outputFolder, 'file'))
+  mkdir(outputFolder);
+end
 
 fileCounter = 1;
 for i = 1:length(inputFolders)
@@ -46,8 +50,9 @@ for fileCounter = 1:length(inputFiles)
   clear topographies;
   for i = 1:length(targetIndices)
     latency = eeg.event(targetIndices(i)).latency;
-    startIndex = latency+preEvent;
+    startIndex = latency + preEvent;
     endIndex = latency + postEvent;
+    endIndex = min(endIndex, eeg.pnts);
     outputFile = sprintf('%s-%03d.mat', file, i);
     outputPath = fullfile(outputFolder, outputFile);
     if(~exist(outputPath, 'file'))
@@ -73,7 +78,7 @@ for fileCounter = 1:length(inputFiles)
       else
         eegSlice.data = eeg.data(:, startIndex:endIndex);
       end
-      topography = phaseSlopeTimecourse(eegSlice, [1 512]);
+      topography = phaseSlopeTimecourse1(eegSlice, [1 512]);
       if(startIndex < 0)
         topography.note = sprintf('filled sample 1-%d with zeros', startIndex);
       end
@@ -81,7 +86,6 @@ for fileCounter = 1:length(inputFiles)
       topography.details.preEventFrames = preEvent;
       topography.details.postEventFrames = postEvent;
       topography.details.targetEventType = targetEventType;
-
       
       save(outputPath, 'topography', '-v7.3');
     end
@@ -96,8 +100,6 @@ save('/home/data/EEG/processed/Oregon/eventSummary.mat', 'events');
 
 %debug
 
-
-if(false)
 chanIndex = 0;
 
 
@@ -117,13 +119,6 @@ figure;
 plot(x, [y1f y2]);
 legend({'phaseSlope', 'rawData'});
 title(sprintf('%s', topography.chanlocs(chanIndex).labels));
-elseif(false)
-  channelIndex = 1;
-  y1 = topography.estimatedTimeLag(:,channelIndex);
-  y2 = topography.estimatedTimeLag(:,channelIndex);
-  
-  x = topography.estimatedTimeLag(:,1);
- end
 %end debug
 
 
