@@ -1,10 +1,9 @@
-function [ channelPairs, x, channels, freqInfo ] = s3eegFourier( EEG )
+function s3eegFourier( EEG, outputFolder )
 %COHERENCE Computes a timeseries of coherence for a given frequency.
 %   Detailed explanation goes here
 
+
 highRes = 0;
-doRelative = 1;
-doRatios = 1;
 
 processFrequenciesInGroups = 1;
 if(highRes)
@@ -44,25 +43,27 @@ elseif(EEG.srate == 1000)
     refreshRate = 250;
 end
 
-
 freqInfo.lowFrequencies = lowFreq;
 freqInfo.highFrequencies = highFreq;
 freqInfo.coherenceSampleRateHz = refreshRate;
 freqInfo.coherenceMemoryDurationSeconds = coherenceMemoryDuration;
 freqInfo.fftWindowDurationSeconds = fftWindowDuration;
+freqInfo.samplesPerChunk = refreshRate * 10;
+freqInfo.chunkCounter = 1;
+freqInfo.sourceFile = EEG.filepath;
 
-
-debugMode = false;
 
 
 if(~exist('EEG', 'var'))
   error('No data was passed to this function');
 end
+mkdir(outputFolder);
 
 %initialize some vars
-plotLength=floor(size(EEG.data,2) / (EEG.srate/refreshRate) - refreshRate * fftWindowDuration);
+% plotLength=floor(size(EEG.data,2) / (EEG.srate/refreshRate) - refreshRate * fftWindowDuration);
+plotLength = freqInfo.samplesPerChunk;
 channelPairCount = EEG.nbchan * (EEG.nbchan-1) / 2;
-nullPlot = NaN(plotLength,1);
+nullPlot = NaN(plotLength,length(freqInfo.lowFrequencies));
 channel.absolutePower = nullPlot;
 for i = 1:length(EEG.chanlocs)
   channel.label = EEG.chanlocs(i).labels;
@@ -97,6 +98,7 @@ crossProdSum = zeros(freqCount, channelPairCount);
 coherenceIndex = 1;
 coherenceCount = 1;
 coherenceFull = false;
+chunkIndex = 1;
 fftStartIndex = 1;
 fftEndIndex = fftStartIndex + sampleRate*fftWindowDuration - 1;
 ffts = NaN(fftEndIndex, channelPairCount);
@@ -107,14 +109,16 @@ fprintf('-');
 
 
 while(fftEndIndex < size(EEG.data,2))
+  times(chunkIndex) = coherenceCount / refreshRate;
   fprintf('\b');
-  if(mod(coherenceCount, 4)==0)
+  ticker = mod(coherenceCount, 4);
+  if(ticker==0)
     fprintf('\\');
-  elseif(mod(coherenceCount, 4)==1)
+  elseif(ticker==1)
     fprintf('-');
-  elseif(mod(coherenceCount, 4)==2)
+  elseif(ticker==2)
     fprintf('/');
-  elseif(mod(coherenceCount, 4)==3)
+  elseif(ticker==3)
     fprintf('|');
   end
   if(mod(coherenceCount, 1000)==0)
@@ -179,13 +183,13 @@ while(fftEndIndex < size(EEG.data,2))
             avgPow2 = avgPow(i, chan2);
             avgDot = dotProdSum(i, channelPairIndex) * queueLengthRecip;
             avgCross = crossProdSum(i, channelPairIndex) * queueLengthRecip;
-            channelPairs(channelPairIndex).coherence(coherenceCount, i) = ...
+            channelPairs(channelPairIndex).coherence(chunkIndex, i) = ...
               (avgDot*avgDot + avgCross*avgCross)...
               / (avgPow1*avgPow2);
-            channels(chan1).absolutePower(coherenceCount, i) = log(avgPow1);
+            channels(chan1).absolutePower(chunkIndex, i) = log(avgPow1);
             %need to fill in the last channel...
             if(chan1 == 1)
-              channels(chan2).absolutePower(coherenceCount, i) = log(avgPow2);
+              channels(chan2).absolutePower(chunkIndex, i) = log(avgPow2);
             end
 %           clock.coherence = toc;
 
@@ -195,8 +199,8 @@ while(fftEndIndex < size(EEG.data,2))
       end
     end
     if(coherenceFull)
-      thisPowerSumRecip = 1 / sum(channels(chan1).absolutePower(coherenceCount, :));
-      channels(chan1).relativePower(coherenceCount, :) = channels(chan1).absolutePower(coherenceCount, :) .* thisPowerSumRecip;
+      thisPowerSumRecip = 1 / sum(channels(chan1).absolutePower(chunkIndex, :));
+      channels(chan1).relativePower(chunkIndex, :) = channels(chan1).absolutePower(chunkIndex, :) .* thisPowerSumRecip;
     end
   end
   %     %debug
@@ -204,7 +208,17 @@ while(fftEndIndex < size(EEG.data,2))
   %         avgPow1 = avgPow(i, chan1);
   %     end
   %     %end debug
+  if(chunkIndex == freqInfo.samplesPerChunk)
+      %write file
+      outputFilename = fullfile(outputFolder, sprintf('%05d.mat', freqInfo.chunkCounter));
+      save(outputFilename, 'times', 'channels', 'channelPairs', 'freqInfo', '-v7.3');
+      freqInfo.chunkCounter = freqInfo.chunkCounter + 1;
+      chunkIndex = 1;
+  end
+
+  chunkIndex = mod(coherenceCount, freqInfo.samplesPerChunk) + 1;
   coherenceCount = coherenceCount + 1;
+  
   coherenceIndex = coherenceIndex + 1;
   if(coherenceIndex > queueLength)
     coherenceIndex = 1;
@@ -214,15 +228,32 @@ while(fftEndIndex < size(EEG.data,2))
   fftEndIndex = fftStartIndex + sampleRate*fftWindowDuration - 1;
 end
 
-x = ((1:size(channelPairs(1).coherence,1))-1) ./ refreshRate;
-remove = isnan(channelPairs(1).coherence(:,1));
-for i = 1:length(channelPairs)
-  channelPairs(i).coherence(remove,:) = [];
+if(chunkIndex > 0)
+    if(chunkIndex < length(times))
+        times((chunkIndex + 1):end) = [];
+        for i = 1:length(channelPairs)
+            channelPairs(i).coherence((chunkIndex + 1):end,:) = [];
+        end
+        for i = 1:length(channels)
+            channels(i).absolutePower((chunkIndex + 1):end,:)=[];
+            channels(i).relativePower((chunkIndex + 1):end,:)=[];
+        end
+        
+    end
+    outputFilename = fullfile(outputFolder, sprintf('%05d.mat', freqInfo.chunkCounter));
+    save(outputFilename, 'times', 'channels', 'channelPairs', 'freqInfo');
 end
-for i = 1:length(channels)
-  channels(i).absolutePower(remove,:)=[];
-end
-x(remove) = [];
+
+% 
+% x = ((1:size(channelPairs(1).coherence,1))-1) ./ refreshRate;
+% remove = isnan(channelPairs(1).coherence(:,1));
+% for i = 1:length(channelPairs)
+%   channelPairs(i).coherence(remove,:) = [];
+% end
+% for i = 1:length(channels)
+%   channels(i).absolutePower(remove,:)=[];
+% end
+% x(remove) = [];
 
 
 

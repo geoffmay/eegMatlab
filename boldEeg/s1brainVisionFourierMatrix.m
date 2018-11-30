@@ -1,4 +1,4 @@
-function outputPath = s1brainVisionFourierMatrix(edfFilename)
+function outputFolder = s1brainVisionFourierMatrix(edfFilename)
 % 
 % locations = fileLocations;
 % ind = strfind(edfFilename, 'EEG_data_sub-');
@@ -22,13 +22,19 @@ function outputPath = s1brainVisionFourierMatrix(edfFilename)
 % 
 % targetNetworks = networkActivity(:, [1 3]);
 [~, file] = fileparts(edfFilename);
-outputPath = ['/home/data/EEG/processed/boldEeg/fourier/', file, '.mat'];
+outputFolder = fullfile('/home/data/EEG/processed/boldEeg/fourier/', file);
 
-if(~exist(outputPath, 'file'))
+if(~exist(outputFolder, 'file'))
   eeg = s2loadBrainvisionEdf(edfFilename);
-  [ fourierEeg.coh, fourierEeg.x, fourierEeg.channels, fourierEeg.freqInfo ] = s3eegFourier(eeg);
-  fourierEeg.filename = edfFilename;
-  save(outputPath, 'fourierEeg', '-v7.3');
+  if(false)
+      maxIndex = 5000;
+      eeg.times((maxIndex + 1):end) = [];
+      eeg.pnts = maxIndex;
+      eeg.data(:, (maxIndex + 1:end)) = [];
+  end
+  s3eegFourier(eeg, outputFolder);
+%   fourierEeg.filename = edfFilename;
+%   save(outputFolder, 'fourierEeg', '-v7.3');
 end
 
 
