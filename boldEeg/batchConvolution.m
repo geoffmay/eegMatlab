@@ -2,9 +2,9 @@ dataFolder = '/home/data/EEG/data/boldEeg';
 processedFolder = '/home/data/EEG/processed/boldEeg/convolved';
 fourierFolder = '/home/data/EEG/processed/boldEeg/fourier';
 
-dataFolder = 'C:\Vision\Raw Files\Geoff EEG test\history';
-processedFolder = 'C:\Users\Neuro\Documents\MATLAB\processed\boldEeg\convolved';
-fourierFolder = 'C:\Users\Neuro\Documents\MATLAB\processed\boldEeg\fourier';
+% dataFolder = 'C:\Vision\Raw Files\Geoff EEG test\history';
+% processedFolder = 'C:\Users\Neuro\Documents\MATLAB\processed\boldEeg\convolved';
+% fourierFolder = 'C:\Users\Neuro\Documents\MATLAB\processed\boldEeg\fourier';
 
 files = dir(dataFolder);
 keep = cellfun(@length, strfind({files.name}, '-edf.edf')) > 0;
