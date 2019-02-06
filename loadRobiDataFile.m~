@@ -1,0 +1,39 @@
+function [ data ] = loadRobiDataFile( filename )
+%UNTITLED Summary of this function goes here
+%   Detailed explanation goes here
+
+labels = antChannelLocs;
+channelCount = 34;
+file = dir(filename);
+fileLength = file.bytes / 8;
+
+%truncate if necessary
+sampleCount = fileLength / channelCount;
+if(sampleCount ~= floor(sampleCount))
+  sampleCount = floor(sampleCount);
+  fileLength = sampleCount * channelCount;
+end
+
+fileId = fopen(filename);
+contents = fread(fileId, fileLength, 'double');
+fclose(fileId);
+
+data = reshape(contents, channelCount, fileLength / channelCount)';
+clear contents;
+
+cpzIndex = find(strcmp(labels,'CPz'));
+m1Index = find(strcmp(labels,'M1'));
+m2Index = find(strcmp(labels,'M2'));
+
+for i=1:size(data,1)
+  sample = data(i,:);
+  linkedMastoids = (sample(m1Index) + sample(m2Index)) / 2;
+  avg = mean(sample(1:33));
+  newSample = sample - linkedMastoids;
+  avgSample = sample - avg;
+  data(i,1:33) = newSample(1:33);
+end
+
+
+end
+

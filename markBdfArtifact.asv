@@ -1,0 +1,263 @@
+folder = 'C:\Users\Neuro\Documents\MATLAB\data\Oregon\PTSD';
+files = dir(folder);
+files([files.isdir]) = [];
+
+fileCounter = 1;
+%load data
+filePath = fullfile(folder, files(fileCounter).name);
+eeg = pop_biosig(filePath, 'ref', 32);
+[chanlabels, chanlocs] = wahbehChannelLocs;
+%downsample
+srate = 128;
+chanInd = 1:31;
+downsampled = downsample(eeg.data(chanInd,:)', eeg.srate / srate)';
+for i = 1:size(downsampled, 1)
+    meanValue = mean(downsampled(i,:));
+    downsampled(i,:) = downsampled(i,:) - meanValue;
+end
+
+%subtract sliding window mean
+demeanSpan = 6 * srate;
+demean = NaN(size(downsampled));
+for j = 1:size(downsampled, 2)
+    fprintf('\ndemeaning %d of %d', j, size(downsampled,2));
+    startFrame = max(1, j-demeanSpan);
+    endFrame = min(j+demeanSpan, size(downsampled,2));
+    for i = 1:size(downsampled, 1)
+        sample = downsampled(i,j) - mean(downsampled(i,startFrame:endFrame));
+        demean(i,j) = sample;
+    end
+end
+
+
+%pick out anterior-most channels
+anterior = [chanlocs(chanInd).X];
+[antX, antInd] = sort(anterior);
+antInd = fliplr(antInd);
+antX = fliplr(antX);
+antLabel = {eeg.chanlocs.labels};
+antLabel = antLabel(chanInd);
+antLabel = antLabel(antInd);
+
+
+%rank order
+%Fp1&Fp2, then
+%AF3&AF4, then
+%F3&F4.
+eyeblinkElectrodes = ...
+    {{'Fp1', 'Fp2'},...
+    {'AF3', 'AF4'},...
+    {'F3', 'F4'}};
+keepInd = [];
+for i = 1:length(eyeblinkElectrodes)
+    set = eyeblinkElectrodes{i};
+    eyeblinkRow = [];
+    for j = 1:length(set)
+        label = set{j};
+        ind = find(strcmp(chanlabels, label));
+        keepInd(end+1) = ind;
+        eyeblinkRow(j) = ind;
+    end
+    eyeblinkInd{i} = eyeblinkRow;
+    eyeblinkLengths(i) = length(eyeblinkRow);
+end
+inorder = zeros(1,size(demean,2));
+for i = 1:size(demean, 2)
+    sample = demean(keepInd,i);
+    [sortSamp, sortInd] = sort(sample);
+    sortInd = length(sortInd) - sortInd + 1;
+    reverseInd = flipud(sortInd);
+    matchNorm = true;
+    countNorm = 0;
+    matchReverse = true;
+    countReverse = 0;
+    for j = 1:length(eyeblinkInd)
+        countNorm = countNorm + eyeblinkLengths(j);
+        countReverse = countReverse + eyeblinkLengths(length(eyeblinkInd)-j+1);
+        if(~all(sortInd(1:countNorm) <= countNorm))
+            matchNorm = false;
+        end
+        if(~all(reverseInd(1:countReverse) <= countReverse))
+            matchReverse = false;
+        end
+    end
+    if(matchNorm)
+        inorder(i) = 1;
+    end
+    if(matchReverse)
+        inorder(i) = -1;
+    end
+end
+
+%threshold proper orders based on duration
+durationThreshold = 0.1;
+durationThreshold = 0.5;
+frontalPositive = inorder == 1;
+frontalNegative = inorder == -1;
+fpDiff = [frontalPositive(1) diff(frontalPositive)];
+fpRising = find(fpDiff == 1);
+fpFalling = find(fpDiff == -1);
+fpDurations = fpFalling-fpRising;
+fpSupraThreshold = find(fpDurations > (durationThreshold*srate));
+
+stIndex = 1;
+risingIndex = fpRising(fpSupraThreshold(stIndex))
+fallingIndex = fpFalling(fpSupraThreshold(stIndex))
+plotX = (risingIndex-50):(fallingIndex+50);
+
+
+for i = 1:size(downsampled, 2)
+end
+
+%todo: rank order, then pick out 
+%Fz doesn't seem to matter as much.
+
+
+i = 1; 
+i = i + 5;
+x = (srate*i):(srate*(i+5));
+plot(x ./ srate, demean(antInd(1:7),x)')
+legend(chanlabels(antInd(keep)));
+
+
+%find derivatives and averages
+interval = 5;
+intervalX = floor(interval * srate);
+interval = intervalX / srate;
+deriv = NaN(size(downsampled));
+avgs = NaN(size(downsampled));
+for i = 1:size(downsampled, 2)
+    fprintf('\naveraging %d of %d', i, size(downsampled, 2));
+    
+    i1 = i + intervalX;
+    i2 = i - intervalX;
+    i2 = max(1,i2);
+    i1 = min(i1, size(downsampled, 2));
+    len = i2-i1+1;
+    for j = 1:size(downsampled,1)
+        avgs(j,i) = mean(downsampled(j,i2:i1));
+    end
+    if(i+intervalX <= size(downsampled, 2))
+        for j = 1:size(downsampled,1)
+            deriv(j, i) = (downsampled(j, i1) - downsampled(j, i)) / interval;
+        end
+    end
+end
+remove = all(isnan(deriv),1);
+deriv(:,remove) = [];
+
+%find up and down slopes for anterior locations
+upSlope = all(deriv(antInd, :) > 0, 1);
+downSlope = all(deriv(antInd, :) < 0, 1);
+allSlope = double(upSlope);
+allSlope(downSlope) = -1;
+
+%plot some results
+exampleStartTime = 315;
+exampleEndTime = 316;
+%exampleX = (exampleStartTime*srate):(exampleEndTime*srate);
+examplePlotData = downsampled(antInd, exampleX);
+examplePlotData = avgs(antInd, exampleX);
+examplePlotDeriv = deriv(antInd, exampleX);
+for i = 1:size(examplePlotData, 1)
+    meanData = mean(examplePlotData(i,:));
+    examplePlotData(i,:) = examplePlotData(i,:) - meanData;
+    %     meanDeriv = mean(examplePlotData(i,:));
+    %     examplePlotDeriv(i,:) = examplePlotDeriv(i,:) - meanDeriv;
+end
+keep = 1:9;
+figure;
+plot(exampleX./srate, examplePlotData(keep,:));
+legend(antLabel(keep));
+pan xon
+zoom xon
+figure;
+plot(exampleX./srate, examplePlotDeriv(keep,:));
+legend(antLabel(keep));
+pan xon
+zoom xon
+
+%get user feedback on epochs
+windowCounter = 1;
+windowSize = srate*5;
+windowStart = 1;
+saveFeedback = false;
+while(windowStart+windowSize-1 < size(downsampled,2))
+    x = windowStart:(windowStart+windowSize-1);
+    %     plotData = downsampled(antInd, x);
+    saveData(windowCounter,:,:) = downsampled(:,x);
+
+    plotData = avgs(antInd, x);
+    keep = 1:7;
+    for i = 1:size(plotData,1)
+        meanData = mean(plotData(i,:));
+        plotData(i,:) = plotData(i,:) - meanData;
+    end
+    clf;
+    plotData = plotData(keep,:);
+    plotLabel = antLabel(keep);
+    %add allslope
+    plotSlope = allSlope(x);
+    factor = min(abs(max(max(plotData))),abs(min(min(plotData))));
+    plotSlope = plotSlope .* factor;
+    plotData(end+1,:) = plotSlope;
+    plotLabel{end+1} = 'allSlope';
+    %end add
+    plot(x./srate, plotData);
+    legend(plotLabel);
+    if(saveFeedback)
+         feedback(windowCounter) = input('good? ')
+    else
+        fprintf('\n%d of %d', windowStart, size(downsampled,2));
+        input('press enter... ')
+    end
+    windowStart = windowStart + windowSize;
+    windowCounter = windowCounter + 1;
+end
+
+%todo: do ica only on detected eyeblinks
+doIca = false;
+if(doIca)
+    [ica.weights,ica.sphere,ica.compvars,ica.bias,ica.signs,ica.lrates,ica.activations] ...
+        = runica(output.data(keep,:));
+    plotLabels = antLabel(keep);
+    for i = 1:size(ica.activations,1)
+        plotLabels{end+1} = sprintf('ica %d', i);
+    end
+    plotData1 = downsampled(antInd,:);
+    plotData1 = plotData1(keep,:);
+    plotData1 = [plotData1; ica.activations];
+    figure;
+    x = (1:size(plotData1,2)) ./ srate;
+    plot(x, plotData1);
+    legend(plotLabels);
+    pan xon;
+    zoom xon;
+end
+
+
+% 
+% %[wav, freq] = cwt(thisChannel, srate);
+% % locutoff = 1;
+% % hicutoff = 30;
+% % [smoothdata] = eegfilt(downsampled,srate,locutoff,hicutoff);
+% 
+% x = (1:length(smoothdata)) ./ srate;
+% figure;
+% plot(x, downsampled);
+% plotLab = {eeg.chanlocs.labels};
+% legend(plotLab(chanInd));
+% pan xon;
+% zoom xon;
+
+outputFolder = 'C:\Users\Neuro\Documents\MATLAB\processed\Oregon\';
+outputPath = [outputFolder files(fileCounter).name '.mat'];
+
+output.feedback = feedback;
+output.data = saveData;
+
+save(outputPath, 'output');
+
+
+
+

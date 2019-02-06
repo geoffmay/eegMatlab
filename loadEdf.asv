@@ -1,0 +1,19 @@
+filename = 'C:\Vision\Raw Files\eegtest\export\eegtest_0001-edf.edf';
+markerName = 'C:\Vision\Raw Files\eegtest\export\eegtest_0001_Pulse Artifact Correction.Markers';
+
+eeg = eeg_emptyset;
+eeg.data = ft_read_data(filename);
+header = ft_read_header(filename);
+eeg.srate = header.Fs;
+eeg.nbchan = header.nChans;
+eeg.pnts = size(eeg.data, 2);
+eeg.chanlocs.labels = header.label;
+setStandardLocations(
+
+positions = loadVolumeMarkers(markerName);
+
+
+% tab=tabulate(diff(positions));
+% tab(tab(:,2)==0,:) = [];
+% tab
+
