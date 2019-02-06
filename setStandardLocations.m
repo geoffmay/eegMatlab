@@ -7,16 +7,24 @@ function [ EEG ] = setStandardLocations( EEG )
 %chans = readlocs('Standard-10-5-Cap385.sfp');
 %chans = readlocs('/Applications/MATLAB_R2014a.app/toolbox/eeglab13_4_4b/plugins/dipfit2.3/standard_BESA/standard_BESA.mat');
 %chans = readlocs('/Applications/MATLAB_R2014a.app/toolbox/eeglab13_4_4b/plugins/dipfit2.3/standard_BESA/standard-10-5-cap385.elp');
-eeglabMissing = false;
 if(~exist('finputcheck'))
-    eeglabFolder = '/home/data/EEG/scripts/eeglab13_4_4b';
-    if(~exist('eeglab', 'file'))
-        eeglabMissing = true;
-        addpath(eeglabFolder);
-    end
     eeglab;
 end
-chans = readlocs('/home/data/EEG/scripts/bespoke/standard-10-5-cap385.elp');
+%chans = readlocs('/home/data/EEG/scripts/bespoke/standard-10-5-cap385.elp');
+%quickFile = '/Users/Geoff/Documents/MATLAB/scripts/bespoke/standard-10-5-cap385.mat';
+%quickFile = 'C:\Users\Neuro\Documents\MATLAB\eegMatlab';
+folder = fileparts(which('setStandardLocations'));
+quickFile = fullfile(folder, 'standard-10-5-cap385.mat');
+if(~exist(quickFile))
+    folder = fileparts(which('eeglab'));
+    slowFile = fullfile(folder, 'plugins','dipfit2.3','standard_BESA', 'standard-10-5-cap385.elp');
+    chans = readlocs(slowFile);
+else
+    a = load(quickFile);
+    chans = a.chans;
+end
+
+
 totalFound =0;
 chanString = cell(0);
 for j = 1:length(EEG.chanlocs)
@@ -59,10 +67,6 @@ end
 %             EEG.chanlocs(j).sph_phi_besa= [];
 % end
 % end
-
-if(eeglabMissing)
-    rmpath(genpath(eeglabFolder));
-end
 
 end
 

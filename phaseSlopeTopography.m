@@ -1,174 +1,168 @@
-function [channelPhaseEstimates, signalToNoiseRatio, residual] = phaseSlopeTopography(slopes, epsilon, verbose)
-%PHASESLOPETOPOGRAPHY calculates the phase slope between two columns of a matrix
-%of timeseries data.
-%   Phase slope is an approximation of the way that the phase angle between
+function [ phaseSlopeTopographies ] = phaseSlopeTopography( EEG, frequencyLimits )
 
-if(~exist('epsilon','var'))
-    epsilon = 0;
-end
-if(~exist('verbose','var'))
-    verbose = false;
-end
-nIteration = 1000;
+%PHASESLOPETIMECOURSE Summary of this function goes here
+%   Detailed explanation goes here
 
-searchStepCount = 100;
-initialStepSize = 10;
+if(~exist('frequencyLimits', 'var'))
+  frequencyLimits = [1, EEG.srate / 2 - 1; ...
+%     1, 4; ...
+%     5, 8; ...
+%     8, 12; ...
+%     12, 15; ...
+%     15, 20; ...
+    20, 60];
+  
+end
+windowDuration = 1;
 
+saveResiduals = false;
+debug = true;
 
-errorSize = zeros(32,32);
-channelPhaseEstimates = NaN(1,32);
-channelPhaseEstimates(1) = 0;
-fileNumber = 1;
-for chan=2:32
-    estimated = channelPhaseEstimates(1:chan-1);
-    actual = slopes(chan,1:chan-1, fileNumber);
-    miss = actual - estimated;
-    channelPhaseEstimates(chan) = mean(miss);
-    for i = 1:(chan-1)
-        errorSize(chan,i) = miss(i) - channelPhaseEstimates(i);
-    end
+sampleRate = EEG.srate;
+windowSize = floor(sampleRate * windowDuration);  
+frequencyLimits = floor(frequencyLimits .* windowDuration);
+frequencyLimits(frequencyLimits == 0) = 1;
+
+windowIncrement = 100;
+fftIndices = 1:windowSize/2;
+totalWindows = floor(size(EEG.data,2) / windowIncrement);
+chanCount = size(EEG.data, 1);
+phaseAngles = NaN(length(fftIndices), 1);
+phaseSlopeTopographies.estimatedTimeLag = NaN(totalWindows, chanCount);
+if(saveResiduals)
+  phaseSlopeTopographies.estimateResiduals = NaN(totalWindows, chanCount, chanCount);
 end
-channelPhaseEstimates = channelPhaseEstimates - mean(channelPhaseEstimates);
-iterationSize = abs(channelPhaseEstimates) .* initialStepSize;
-delError = realmax;
-lastError = realmax;
-outOfBounds = false;
-iteration = 1;
-zeroCounter = 0;
-while(iteration < nIteration && zeroCounter < 3)
-    iteration = iteration + 1;
-    lastEstimate = channelPhaseEstimates;
-    if(iteration > 3)
-        delError = abs(totalError - lastError);
+phaseSlopeTopographies.signalToNoiseRatio = NaN(totalWindows, 1);
+phaseSlopes = NaN(chanCount,chanCount);
+sampleCounter = 1;
+windowCounter = 1;
+fprintf('  (------')
+while(sampleCounter + windowSize < size(EEG.data,2))
+  endIndex = sampleCounter + windowSize - 1;
+  if(debug)
+    fprintf('\n(%s) %d of %d', char(datetime), sampleCounter + windowSize, size(EEG.data,2));
+  end
+  
+  for chanIndex1 = 1:chanCount
+    sample1 = EEG.data(chanIndex1, sampleCounter:endIndex);
+    fft1 = fft(sample1);
+    for chanIndex2 = chanIndex1:chanCount
+      sample2 = EEG.data(chanIndex2, sampleCounter:endIndex);
+      fft2 = fft(sample2);
+      for freqCounter = fftIndices
+        phase1 = atan2(imag(fft1(freqCounter)), real(fft1(freqCounter)));
+        phase2 = atan2(imag(fft2(freqCounter)), real(fft2(freqCounter)));
+        phaseAngle = phase2-phase1;
+        phaseAngles(freqCounter) = phaseAngle;
+        %positive phase angle means phase2 came first (see debug block for proof)
+        %         if(debug)
+        %             close all;phaseSlopeTopo
+        %             allPhase1(windowCounter,freqCounter) = phase1;
+        %             allPhase2(windowCounter,freqCounter) = phase2;
+        %             if(plot1)
+        %                 if(freqCounter == 3)
+        %                     keepI = [freqCounter+1, length(fft1)-freqCounter+1];
+        %                     keep = zeros(1,length(fft1));
+        %                     keep(keepI) = 1;
+        %                     filtered1 = fft1;
+        %                     filtered2 = fft2;
+        %                     filtered1(find(~keep)) = 0;
+        %                     filtered2(find(~keep)) = 0;
+        %                     fData1 = ifft(filtered1);
+        %                     fData2 = ifft(filtered2);
+        %                     figure;
+        %                     hold on;
+        %                     plot(fData1,'b');
+        %                     plot(fData2,'r');
+        %                 end %break here to compare plot to variables.
+        %             end
+        %         end
+        
+        %todo: took this out
+        %         if(phaseAngle < -pi)
+        %             phaseAngle = phaseAngle + 2*pi;
+        %         elseif(phaseAngle > pi)
+        %             phaseAngle = phaseAngle - 2*pi;
+        %         endphaseSlopeTopo
+        %         phaseAngles(windowCounter, freqCounter, chanIndex1, chanIndex2) = phaseAngle;
+        %         phaseAngles(windowCounter, freqCounter, chanIndex2, chanIndex1) = -phaseAngle;
+      end
+      
+      %compute phase slopes
+      %       meanPhase = mean(phaseAngles);
+      %       meanPhaseDifference(windowCounter,chanIndex1,chanIndex2) = meanPhase;
+      %       meanPhaseDifference(windowCounter,chanIndex2,chanIndex1) = -meanPhase;
+      for freqBinCounter = 1:size(frequencyLimits, 1)
+        startFreq = frequencyLimits(freqBinCounter, 1);
+        endFreq = frequencyLimits(freqBinCounter, 2);
+        x = (startFreq:endFreq)';
+        poly = polyfit(x, phaseAngles(startFreq:endFreq), 1);
+        phaseSlopes(chanIndex1,chanIndex2, freqBinCounter) = poly(1);
+        phaseSlopes(chanIndex2,chanIndex1, freqBinCounter) = -poly(1);
+      end
+      
+      
+    end%chanIndex2 loop
+    
+  end %chanIndex1 loop
+  for freqBinCounter = 1:size(frequencyLimits, 1)
+    phaseSlopeTopo = solveLinearCombination(squeeze(phaseSlopes(:,:, freqBinCounter)));
+    phaseSlopeTopographies.estimatedTimeLag(windowCounter, :, freqBinCounter) = phaseSlopeTopo.estimatedTimeLag;
+    if(saveResiduals)
+      phaseSlopeTopographies.estimateResiduals(windowCounter, :, :, freqBinCounter) = phaseSlopeTopo.estimateResiduals(:,:);
     end
-    if(iteration > 2)
-        lastError = totalError;
-    end
-    if(delError <= epsilon)
-        zeroCounter = zeroCounter + 1;
-    else
-        zeroCounter = 0;
-    end
-    totalError = 0;
-    totalSignal = 0;
-    for chan = 1:32
-        lastGuess = lastEstimate(chan);
-        guesses = (lastGuess-iterationSize(chan)*searchStepCount/2):iterationSize(chan):(lastGuess+iterationSize(chan)*searchStepCount/2);
-        errors = NaN(1,length(guesses));
-        minError = realmax;
-        minSignal = realmax;
-        minIndex = -1;
-        for guessNumber = 1:length(guesses)
-            guessError = 0;
-            guessSignal = 0;
-            counter = 1;
-            actual = NaN(1, 32 - 1);
-            estimated = NaN(1, 32 - 1);
-            for guessChannel = 1:32
-%                 if(guessChannel < chan)
-%                     estimated(counter) = -guesses(guessNumber);
-%                 elseif(guessChannel > chan)
-%                     estimated(counter) = guesses(guessNumber);
-%                 end
-                if(guessChannel~=chan)
-                    estimated(counter) = guesses(guessNumber);
-                    actual(counter) = slopes(guessChannel,chan,fileNumber);
-                    channelError = abs(actual(counter)-estimated(counter));
-                    channelError = channelError * channelError;
-                    guessError = guessError + channelError;
-                    guessSignal = guessSignal + abs(guesses(guessNumber));
-                end
-                counter = counter + 1;
-            end
-            if(guessError < minError)
-                minError = guessError;
-                minIndex = guessNumber;
-                minSignal = guessSignal;
-            end
-            if(false)
-                if(iteration > 30)
-                    figure;
-                    hold on;
-                    plot(actual,'b');
-                    plot(estimated,'r');
-                    title(sprintf('channel %d', chan));
-                end
-            end
-            errors(guessNumber) = guessError;
-        end
-        if(false)
-            figure;
-            hold on;
-            plot(errors,'b');
-        end
-        totalError = totalError + minError;
-        totalSignal = totalSignal + minSignal;
-        if(minIndex > 0)
-            channelPhaseEstimates(chan) = guesses(minIndex);
-        else
-            dummy = 1;
-        end
-        %guesses on the edge mean the territory should be expanded.
-        if(minIndex < 3 || minIndex > (length(guesses)-2))
-            iterationSize(chan) = iterationSize(chan) * 16;
-            outOfBounds = true;
-        end
-    end
-    %if all guesses were in bounds, we can narrow our search next time.
-    if(~outOfBounds)
-        for chan=1:32
-            iterationSize(chan) = iterationSize(chan) / 2;
-        end
-    end
-    if(verbose)
-        fprintf('\niteration #%d, error = %f, delError = %d', iteration, totalError, delError);
-    end
+    phaseSlopeTopographies.signalToNoiseRatio(windowCounter, freqBinCounter) = phaseSlopeTopo.signalToNoiseRatio;
+  end
+  sampleCounter = sampleCounter + windowIncrement;
+  windowCounter = windowCounter + 1;
 end
-if(verbose)
-    fprintf('\n');
-end
-signalToNoiseRatio = sqrt(totalSignal / totalError);
-if(false)
+
+%save('/home/data/EEG/processed/Oregon/phaseSlopeWork.mat', '-v7.3');
+
+phaseSlopeTopographies.chanlocs = EEG.chanlocs;
+phaseSlopeTopographies.filename = EEG.filename;
+details.windowSize = windowSize;
+details.sampleRate = EEG.srate / windowIncrement;
+phaseSlopeTopographies.details = details;
+phaseSlopeTopographies.frequencyLimits = frequencyLimits;
+
+doPlot = false;
+if(doPlot)
+  if(false)
+    %plot multiple frequencies
+    channelIndex = 17;
+    toPlot = squeeze(phaseSlopeTopographies.estimatedTimeLag(:,channelIndex,:));
+    myLegend = cell(0);
+    for i = 1:size(frequencyLimits,1)
+      myLegend{i} = sprintf('%d-%d', frequencyLimits(i, 1), frequencyLimits(i, 2));
+    end
+  elseif(false)
+    %plot multiple channels
+    frequencyIndex = 3;
+    channelIndices = [1 17];
+    toPlot = squeeze(phaseSlopeTopographies.estimatedTimeLag(:,channelIndices,frequencyIndex));
+    myLegend = cell(0);
+    for i = 1:length(channelIndices)
+      myLegend{i} = sprintf('%s 5-8Hz', phaseSlopeTopographies.chanlocs(channelIndices(i)).labels);
+    end
+  elseif(false)
+    %cluster
+    frequencyIndex = 3;
+    toPlot = squeeze(phaseSlopeTopographies.estimatedTimeLag(:,:,frequencyIndex));
+    Z = linkage(toPlot);
     figure;
-    plot(channelPhaseEstimates');
-    legends = cell(1,size(channelPhaseEstimates,1));
-    for i = 1:length(legends)
-        legends{i} = num2str(i);
-    end
-    legend(legends);
+    dendrogram(Z,0)
+  end
+  
+  figure;
+  x = ((1:size(toPlot, 1)) ./ phaseSlopeTopographies.details.sampleRate)';
+  plot(x, toPlot);
+  title(sprintf('phase slope height %s', phaseSlopeTopographies.chanlocs(channelIndex).labels));
+  legend(myLegend);
+  pan xon;
+  zoom xon;
 end
-if(nargout > 2)
-    if(verbose)
-        figure;
-    end
-    residual = slopes;
-    originalPower = 0;
-    residualPower = 0;
-    for chan1 = 1:32
-        for chan2 = (chan1+1):32
-            value = slopes(chan2,chan1,fileNumber);
-            originalPower = originalPower + value * value;
-            value = value - channelPhaseEstimates(chan1) + channelPhaseEstimates(chan2);
-            %             residual(chan2,chan1,fileNumber) = value;
-            residualPower = residualPower + value * value;
-            residual(chan1,chan2,fileNumber) = value;
-        end
-    end
-    originalPower = sqrt(originalPower);
-    residualPower = sqrt(residualPower);
-    powerRatio = originalPower / residualPower;
-    if(verbose)
-        imagesc(residual(:,:,fileNumber));
-        colorbar;
-        fprintf('original power: %f; residual power: %f; ratio: %f', originalPower, residualPower, powerRatio);
-    end
-    for chan1 = 1:32
-        for chan2 = (chan1+1):32
-            value = slopes(chan2,chan1,fileNumber);
-            value = value - channelPhaseEstimates(chan1) + channelPhaseEstimates(chan2);
-            residual(chan2,chan1,fileNumber) = value;
-        end
-    end
 
-end
-end
+
+
+

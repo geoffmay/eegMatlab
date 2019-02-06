@@ -8,38 +8,26 @@ coh = coherenceTimeCourse;
 windowSize = 1024;
 b = (1/windowSize)*ones(1,windowSize);
 a = 1;
-% try
-coh1 = filtfilt(b, a, coh);
+try
+    coh1 = filtfilt(b, a, coh);
+catch err
+    badReferenceCutoff = 1;
+end
 threshold1 = 0.99;
 supraThreshold = coh1 > threshold1;
-supraThresholdIndexes = find(supraThreshold);
-if(length(supraThresholdIndexes) == 0)
+firstFilteredSupraThreshold = find(supraThreshold);
+if(length(firstFilteredSupraThreshold) == 0)
     badReferenceCutoff = length(coh1);
 else
+    firstFilteredSupraThreshold = firstFilteredSupraThreshold(1);
     threshold2 = 0.9;
-    minPercentBelowThreshold2 = .1;
-    
-    thresholdMetaIndex = 0;
-    while(percentBelowThreshold < minPercentBelowThreshold & thresholdMetaIndex <= length(supraThresholdIndexes))
-        thresholdMetaIndex = thresholdMetaIndex + 1;
-        cutoffPoint = supraThresholdIndexes(thresholdMetaIndex);
-        subThreshold = coh(cutoffPoint:end) < threshold2;
-        percentBelowThreshold = sum(subThreshold) / (length(coh) - cutoffPoint + 1);
-    end
     subThreshold = coh < threshold2;
-    subThreshold(cutoffPoint:end) = [];
+    subThreshold(firstFilteredSupraThreshold:end) = [];
     lastUnfilteredSubThreshold = find(subThreshold);
-    if(length(lastUnfilteredSubThreshold) > 0)
-        lastUnfilteredSubThreshold = lastUnfilteredSubThreshold(end);
-        badReferenceCutoff = lastUnfilteredSubThreshold;
-    else
-        badReferenceCutoff = 1;
-    end
+    lastUnfilteredSubThreshold = lastUnfilteredSubThreshold(end);
+    badReferenceCutoff = lastUnfilteredSubThreshold;
 end
 
-% catch err
-%     badReferenceCutoff = 1;
-% end
 
 end
 

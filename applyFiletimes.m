@@ -16,14 +16,19 @@ for i = 2:length(newlines)
     spaces = strfind(line, ' ');
     if(length(spaces) > 0)
         numberText = line(1:(spaces(1)-1));
-        filePath = line(spaces(1)+1:end);
-        number = str2double(numberText);
-        filedate = datetime(number, 'convertfrom', 'datenum');
+        filePath{i} = line(spaces(1)+1:end);
+        number(i) = str2double(numberText);
+        filedate(i) = datetime(number, 'convertfrom', 'datenum');
         
+    end    
+end
+
+if(false)
+for i = 2:length(newlines)
         %set file time (using java import)
         f = File(fullfile(root, filePath));
         sdf = SimpleDateFormat('dd-MMM-yyyy HH:mm:ss');
         newDate = sdf.parse(datestr(filedate));
         f.setLastModified(newDate.getTime);
-    end    
+end
 end

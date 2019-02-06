@@ -1,4 +1,3 @@
-
 function [ labels, chanlocs ] = antChannelLocs( input_args )
 %ANTCHANNELLOCS Summary of this function goes here
 %   Detailed explanation goes here

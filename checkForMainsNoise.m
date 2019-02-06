@@ -27,7 +27,7 @@ if(newVersion)
     powerThreshold = .5;
     
     for fileCounter = 1:length(filenames)
-%         fprintf('\n%d of %d', fileCounter, length(filenames));
+        fprintf('\n%d of %d', fileCounter, length(filenames));
         filename = filenames{fileCounter};
         fileInfo = dir(filename);
         fileLength = fileInfo.bytes / 8;
@@ -46,7 +46,7 @@ if(newVersion)
             windowInterval = floor((sampleCount - windowDuration * sampleRate) / windowCount);
             windowStarts = 1 + (0:windowCount-1).*windowInterval;
             for i = 1:windowCount
-%                 fprintf('.');
+                fprintf('.');
                 windowWidth = windowDuration * sampleRate * channelCount;
                 windowStart = ((windowStarts(i)-1) * channelCount) * 8;
                 fseek(fileId, windowStart, -1);
@@ -56,12 +56,12 @@ if(newVersion)
                 fourier = fft(data(:,1));
                 power = abs(fourier);
                 power = power(2:120);
-                %                 %debug
-                %                 plot60(plotCounter) = power(60);
-                %                 plotCounter = plotCounter + 1;
-                %                 %end debug
-                %                 close all;
-                %                 figure;
+                %debug
+                plot60(plotCounter) = power(60);
+                plotCounter = plotCounter + 1;
+                %end debug
+                close all;
+                figure;
                 if(i == 1)
                     sums = power;
                 else
@@ -99,7 +99,7 @@ windowCount = 10;
 powerThreshold = 10000 * windowCount;
 
 for fileCounter = 1:length(filenames)
-%     fprintf('\n%d of %d', fileCounter, length(filenames));
+    fprintf('\n%d of %d', fileCounter, length(filenames));
     filename = filenames{fileCounter};
     fileInfo = dir(filename);
     fileLength = fileInfo.bytes / 8;
@@ -114,7 +114,7 @@ for fileCounter = 1:length(filenames)
     windowInterval = floor((sampleCount - windowDuration * sampleRate) / windowCount);
     windowStarts = 1 + (0:windowCount-1).*windowInterval;
     for i = 1:windowCount
-%         fprintf('.');
+        fprintf('.');
         window = windowStarts(i):(windowStarts(i)+windowDuration * sampleRate);        
         fourier = fft(data(window,1));
         power = abs(fourier);

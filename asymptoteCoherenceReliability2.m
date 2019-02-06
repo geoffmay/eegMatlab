@@ -53,7 +53,7 @@ start1Ind = find(start1Mask);
 
 while(~deltaFractionBelowThreshold)
   %resample
-  for repCounter = 1:batchSize;
+  for repCounter = 1:batchSize
     %     good = false;
     %     while(~good)
     start1a = ceil(length(start1Ind) * rand);
@@ -97,11 +97,12 @@ while(~deltaFractionBelowThreshold)
     finishedLoop = true;
   end
   if(finishedLoop)
+    fprintf('.');
     delDel = abs(diff(delAvg, 1, 1));
     meanDelDel = mean(delDel, 1);
     meanDel = mean(delAvg);
     delDelFraction = meanDelDel ./ meanDel;
-    avgDelFraction = mean(delDelFraction, 2);
+    avgDelFraction = nanmean(delDelFraction, 2);
 %     fprintf('\n(%s) iteration %d: avgDelFraction %f', char(datetime), iterationCounter, avgDelFraction);
     if(avgDelFraction < minDeltaFraction)
       deltaFractionBelowThreshold = true;

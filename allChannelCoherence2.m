@@ -20,8 +20,13 @@ if(processFrequenciesInGroups)
     lowFreq = freqDiv(1:end-1);
     highFreq = freqDiv(2:end)-(1/fftWindowDuration);
   else
-    lowFreq = [1 5 9 13 25];
-    highFreq = [4 8 12 24 30];
+      if(EEG.srate > 600)
+    lowFreq = [1 5 9 13 25 40 70 150];
+    highFreq = [4 8 12 24 39 70 150 300];
+      else
+    lowFreq =  [1 5 9  13 25 70 ];
+    highFreq = [4 8 12 24 50 124];
+      end
     %         lowFreq = [1 4 8 12 25];
     %         highFreq = [4 8 12 25 30];
   end
@@ -37,6 +42,13 @@ end
 sampleRate = EEG.srate;
 refreshRate = 128;
 coherenceMemoryDuration = 0.5;
+
+if(EEG.srate == 250)
+    refreshRate = 250;
+elseif(EEG.srate == 1000)
+    refreshRate = 250;
+end
+
 
 freqInfo.lowFrequencies = lowFreq;
 freqInfo.highFrequencies = highFreq;

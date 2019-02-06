@@ -81,38 +81,37 @@ for fileCounter = 1:length(fileNames)
     if(veryShort)
       load('/home/data/EEG/processed/quickBdf.mat');
     else
-      load(fileName);
-%       eeg = loadBdf(fileName);
+      eeg = loadBdf(fileName);
     end
-    summmary = performReliabilityAnalysis4(surfCoh, outPath);
-%     summary = performReliabilityAnalysis2(eeg, outPath);
+    
+    summary = performReliabilityAnalysis2(eeg, outPath);
     %summary = performReliabilityAnalysis1(eeg, outPath);
     %summary = performReliabilityAnalysis(eeg, outPath);
     save(outPath, 'summary');
   end
 end
-% 
-% if(doMaster)
-%   outFile = ['masterIca.mat'];
-%   outPath = fullfile(outputFolder, outFile);
-%   if(~exist(outPath, 'file'))
-%     placeHolder = sprintf('created on %s', char(datetime));
-%     save(outPath, 'placeHolder');
-%     allPaths = cell(length(fileNames), 1);
-%     for i = 1:length(fileNames)
-%       allPaths{i} = fullfile(inputFolder, fileNames(i).name);
-%     end
-%     icaCoh = deriveIcaCoherenceMatrix(allPaths, 8);
-%     save(outPath, icaCoh);
-%   end
-% end
-% 
-% if(false)
-%   clf;
-%   measureCount = size(summary.icaRhos, 2);
-%   ind = (measureCount - 31*5) : measureCount;
-%   plot(summary.sampleFrameDuration ./ (128 * 60), summary.icaRhos(:,ind));
-%   legend(summary.icaLabels(ind));
-% end
-% 
-% clear;
+
+if(doMaster)
+  outFile = ['masterIca.mat'];
+  outPath = fullfile(outputFolder, outFile);
+  if(~exist(outPath, 'file'))
+    placeHolder = sprintf('created on %s', char(datetime));
+    save(outPath, 'placeHolder');
+    allPaths = cell(length(fileNames), 1);
+    for i = 1:length(fileNames)
+      allPaths{i} = fullfile(inputFolder, fileNames(i).name);
+    end
+    icaCoh = deriveIcaCoherenceMatrix(allPaths, 8);
+    save(outPath, icaCoh);
+  end
+end
+
+if(false)
+  clf;
+  measureCount = size(summary.icaRhos, 2);
+  ind = (measureCount - 31*5) : measureCount;
+  plot(summary.sampleFrameDuration ./ (128 * 60), summary.icaRhos(:,ind));
+  legend(summary.icaLabels(ind));
+end
+
+clear;

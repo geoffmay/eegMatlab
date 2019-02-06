@@ -20,6 +20,7 @@ if(nargout > 1)
     end
     EEG = setStandardLocations(EEG);
     chanlocs = EEG.chanlocs;
+    
 end
 
 end

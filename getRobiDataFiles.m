@@ -5,6 +5,7 @@ files = cell(0);
 paths = cell(0);
 folders = cell(0);
 folder = '/home/data/EEG/data/ROBI';
+folder = 'C:\Users\Neuro\Documents\MATLAB\data\ROBI';
 subdirs = dir(folder);
 for i = 1:length(subdirs)
   if(~strcmp(subdirs(i).name, '.') & ~strcmp(subdirs(i).name, '..'))

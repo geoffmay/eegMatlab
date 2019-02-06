@@ -20,11 +20,6 @@ globalMax = realmin;
 for fileCounter = fileIndices
     filename = fullfile(inputFolder, inputFiles(fileCounter).name);    
     a = load(filename);
-    stdScores = std(a.cohPca.SCORE, 1);
-    for i = 1:size(a.cohPca.COEFF, 2)
-    normCoeff(:,i) = a.cohPca.COEFF(:,i) .* stdScores
-    end
-    
     data{fileCounter} = a;
     globalMin = min(globalMin, min(a.cohPca.COEFF(:,1)));
     globalMax = max(globalMax, max(a.cohPca.COEFF(:,1)));
@@ -44,6 +39,7 @@ for fileCounter = fileIndices
         myTitle = strrep(myTitle, '_', ' ');
         figureFolder = '/home/data/EEG/processed/Robi/figure';
         print(fullfile(figureFolder, sprintf('%s.png',myTitle)), '-dpng');        
+        %         print(fullfile(figureFolder, myTitle), '-dpng');
         drawnow;        
     end    
 end
