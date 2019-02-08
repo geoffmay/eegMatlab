@@ -1,4 +1,4 @@
-%function [output, pcaResult] = imputeUsingPpca(input, maxMemory)
+function [output, pcaResult] = imputeUsingPpca(input, maxMemory)
 
 
 %error checking
@@ -11,21 +11,28 @@ end
 if(~exist('maxMemory', 'var'))
     [memInfo, memSys] = memory();    
     %maxMemory = memInfo.MaxPossibleArrayBytes;
-    maxMemory = memSys.PhysicalMemory.Available
+    maxMemory = memSys.PhysicalMemory.Available;
 end
 %maxComponents = floor(sqrt(maxMemory / size(input,1) / 8));
 
 componentCount = size(input, 2);
-maxSamples = maxMemory 
+maxSamples = floor(maxMemory / (componentCount * componentCount * 8 * 2));
+downsampleRate = ceil(size(input, 1) / maxSamples);
 
-if(maxComponents >= componentCount)
-    fprintf('imputing with all %d available components', componentCount);
+% if(maxComponents >= componentCount)
+%     fprintf('imputing with all %d available components', componentCount);
+% else
+%     componentCount = maxComponents;
+%     fprintf('trimming to %d components to conserve memory', componentCount);
+% end
+
+if(downsampleRate == 1)
+     fprintf('imputing with all %d observations\n', size(input, 1));
 else
-    componentCount = maxComponents;
-    fprintf('trimming to %d components to conserve memory', componentCount);
+    oldSize = size(input,1);
+    input = downsample(input, downsampleRate);
+    fprintf('downsapmling to %d observations (%0.1f%%) based on available physical memory (%0.2f GB)\n', size(input, 1), size(input,1) / oldSize * 100, maxMemory / 1024  / 1024  / 1024);
 end
-
-
 
 
 %impute using mean values to produce a starting point for nan
@@ -85,3 +92,58 @@ end
 % save('C:\Users\Neuro\Documents\MATLAB\processed\GhermanPhilastides\imputedByPpca.mat', 'pcaResult', '-v7.3');
 % 
 % save('C:\Users\Neuro\Documents\MATLAB\processed\GhermanPhilastides\imputed.mat', '-v7.3');
+
+if(false)
+    comps = rand(100, 2);
+    coeffs = [10 1 2 4; 3 5 1 2];
+    sigs = comps * coeffs;
+    [pca0.COEFF,pca0.SCORE,pca0.LATENT,pca0.MU,pca0.V,pca0.S] = pca(sigs);
+    reconstructed = pca0.SCORE*pca0.COEFF';
+    for i = 1:size(sigs,2)
+        meanValue = mean(sigs(:,i));
+        reconstructed(:,i) = reconstructed(:,i) + meanValue;
+    end
+    [rho, p] = corr(sigs(:), reconstructed(:));
+    
+    
+    sig2comp = inv(pca0.COEFF);
+    reconstructedScore = sigs * sig2comp';
+    epsilon = 1e-20;
+    emptyColumn = pca0.LATENT < epsilon;
+    %     emptyColumn = all(abs(reconstructedScore) < epsilon);
+    reconstructedScore(:, emptyColumn) = [];
+    
+    %     ratio = reconstructedScore ./ comps;
+    
+    for i = 1:size(reconstructedScore,2)
+        scaledScore(:,i) = reconstructedScore(:, i) .* pca0.LATENT(i);
+    end
+    
+    recMean = mean(reconstructedScore);
+    compMean = mean(comps);
+    
+    recStd = std(reconstructedScore);
+    compStd = std(comps);
+    
+    normComp = comps(:,1);
+    normComp = normComp - mean(normComp(:,1));
+    normComp = normComp ./ std(normComp(:,1));
+    normRec = reconstructedScore(:,1);
+    normRec = normRec - mean(normRec(:,1));
+    normRec = normRec ./ std(normRec(:,1));
+    
+    
+%     normRec = reconstructedScore(:,1) - mean(reconstructedScore(:,1)) ./ std(reconstructedScore(:,1));
+    figure;
+    plot([normComp, normRec]);
+    legend({'normComp', 'normRec'});
+    
+    [rho2, p2] = corr(comps(:), scaledScore(:));
+
+    close all;
+    scatter(comps(:,1), reconstructedScore(:,1));
+    
+    plot([comps(:,1), scaledScore(:,1), reconstructedScore(:,1)])
+    legend({'original', 'scaled', 'reconstructed'});
+end
+
