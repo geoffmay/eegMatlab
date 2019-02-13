@@ -6,7 +6,8 @@ eeg.data = data.EEGdata.Y;
 %eeg.srate = data.EEGdata.fs;
 eeg.srate = data.fs;
 
-allChans = readlocs('C:\Users\Neuro\Documents\MATLAB\data\GhermanPhilastides\1.0.1\additional_files_electrode_info.elp');
+%allChans = readlocs('C:\Users\Neuro\Documents\MATLAB\data\GhermanPhilastides\1.0.1\additional_files_electrode_info.elp');
+allChans = readlocs(fullfile(fileparts(which('imputeGhermanEegData')), 'GhermanEfMRIcap64.elp'));
 
 clear chanlocs;
 chanCounter = 1;

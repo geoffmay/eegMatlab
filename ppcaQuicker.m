@@ -92,6 +92,8 @@ function [coeff, score, latent, mu, v, rsltStruct] = ppca(Y, k, varargin)
 
 %   Copyright 2012-2014 The MathWorks, Inc.
 
+verbose = 0;
+
 if nargin > 2
     [varargin{:}] = convertStringsToChars(varargin{:});
 end
@@ -343,10 +345,10 @@ if nargout > 5
 end
 
 smallLatent = latent < (max(size(Y))*eps(max(latent)));
-if any(smallLatent)
-    error(message('stats:ppca:Singular',sum(smallLatent),...
-        sum(~smallLatent)));
-end
+% if any(smallLatent)
+%     error(message('stats:ppca:Singular',sum(smallLatent),...
+%         sum(~smallLatent)));
+% end
 % --------------End of Main Function---------------------------------------
 
 

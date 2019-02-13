@@ -1,5 +1,6 @@
 function [output, ppcaResult] = imputeUsingPpca(input, maxMemory)
 
+verbose = 0;
 
 %error checking
 if(size(input, 1) < size(input, 2))
@@ -9,7 +10,7 @@ end
 
 %figure out max components based on available memory
 if(~exist('maxMemory', 'var'))
-    [memInfo, memSys] = memory();    
+    [memInfo, memSys] = memory();
     %maxMemory = memInfo.MaxPossibleArrayBytes;
     maxMemory = memSys.PhysicalMemory.Available;
 end
@@ -17,26 +18,36 @@ end
 
 componentCount = size(input, 2);
 maxSamples = floor(maxMemory / (componentCount * componentCount * 8 * 2));
+minSamples = size(input, 2);
+if(maxSamples < minSamples)
+    maxSamples = minSamples;
+end
 downsampleRate = ceil(size(input, 1) / maxSamples);
 
+%if(verbose)
 % if(maxComponents >= componentCount)
 %     fprintf('imputing with all %d available components', componentCount);
 % else
 %     componentCount = maxComponents;
 %     fprintf('trimming to %d components to conserve memory', componentCount);
 % end
+%end
 
 if(downsampleRate == 1)
-     fprintf('imputing with all %d observations\n', size(input, 1));
+    if(verbose)
+        fprintf('imputing with all %d observations\n', size(input, 1));
+    end
 else
     oldSize = size(input,1);
-    input = downsample(input, downsampleRate);
-    fprintf('downsapmling to %d observations (%0.1f%%) based on available physical memory (%0.2f GB)\n', size(input, 1), size(input,1) / oldSize * 100, maxMemory / 1024  / 1024  / 1024);
+    dsInput = downsample(input, downsampleRate);
+    if(verbose)
+        fprintf('downsapmling to %d observations (%0.1f%%) based on available physical memory (%0.2f GB)\n', size(input, 1), size(input,1) / oldSize * 100, maxMemory / 1024  / 1024  / 1024);
+    end
 end
 
 
 %impute using mean values to produce a starting point for nan
-meanedInput = input;
+meanedInput = dsInput;
 for i = 1:size(meanedInput, 2)
     nans = isnan(meanedInput(:,i));
     meanValue = mean(meanedInput(~nans, i));
@@ -51,7 +62,7 @@ ppcaOptions.TolFun = 1e-6;
 ppcaOptions.TolX = 1e-6;
 
 tic;
-[ppcaResult.COEFF,ppcaResult.SCORE,ppcaResult.LATENT,ppcaResult.MU,ppcaResult.V,ppcaResult.S] = ppcaQuicker(input, componentCount, 'W0', pcaResult0.COEFF, 'Options', ppcaOptions);
+[ppcaResult.COEFF,ppcaResult.SCORE,ppcaResult.LATENT,ppcaResult.MU,ppcaResult.V,ppcaResult.S] = ppcaQuicker(dsInput, componentCount, 'W0', pcaResult0.COEFF, 'Options', ppcaOptions);
 ppcaResult.elapsedSeconds = toc;
 ppcaResult.maxComponennts = componentCount;
 
@@ -63,21 +74,41 @@ if(false)
     [scoreNanRow, scoreNanCol] = ind2sub(size(pcaResult.SCORE), scoreNanInd);
 end
 
+%apply coefficients to entire input span
+if(downsampleRate > 1)
+    if(verbose)
+        fprintf('%s: using pca coefficients from downsampled data to full sample\n', char(datetime));
+    end
+    ppcaResult.downsampleRate = downsampleRate;
+    ppcaResult.samplesUsed = size(dsInput, 1);
+    tic;
+    [output, recomputeResult] = imputeUsingFixedComponents(input, ppcaResult);
+    ppcaResult.extrapolationSeconds = toc;
+else
+    output = ppcaResult.SCORE * ppcaResult.COEFF';
+end
 
-%reconstruct missing dataset and compare to known values
-reconstructed = ppcaResult.SCORE * ppcaResult.COEFF';
-output = input;
 for i = 1:size(input, 2)
-    meanValue = nanmean(input(:, i));
-    reconstructed(:, i) = reconstructed(:, i) + meanValue;
+    %     meanValue = nanmean(input(:, i));
+    %     reconstructed(:, i) = reconstructed(:, i) + meanValue;
     realMeasure = ~isnan(input(:, i));
-    [rhos(i), ps(i)] = corr(input(realMeasure, i), reconstructed(realMeasure, i));
-    output(~realMeasure, i) = reconstructed(~realMeasure, i);
+    [rhos(i), ps(i)] = corr(input(realMeasure, i), output(realMeasure, i));
 end
 ppcaResult.correlations = rhos;
 
-if(downsampleRate > 1)
-    [output, recomputeResult] = imputeUsingFixedComponents(input, ppcaResult);
+
+if(false)
+    %reconstruct missing dataset and compare to known values
+    reconstructed = ppcaResult.SCORE * ppcaResult.COEFF';
+    output = input;
+    for i = 1:size(input, 2)
+        meanValue = nanmean(input(:, i));
+        reconstructed(:, i) = reconstructed(:, i) + meanValue;
+        realMeasure = ~isnan(input(:, i));
+        [rhos(i), ps(i)] = corr(input(realMeasure, i), reconstructed(realMeasure, i));
+        output(~realMeasure, i) = reconstructed(~realMeasure, i);
+    end
+    ppcaResult.correlations = rhos;
 end
 
 % meanRho = mean(abs(rhos));
@@ -95,7 +126,7 @@ if(false)
 end
 
 % save('C:\Users\Neuro\Documents\MATLAB\processed\GhermanPhilastides\imputedByPpca.mat', 'pcaResult', '-v7.3');
-% 
+%
 % save('C:\Users\Neuro\Documents\MATLAB\processed\GhermanPhilastides\imputed.mat', '-v7.3');
 
 if(false)
@@ -111,13 +142,13 @@ if(false)
     subSample = sigDrop(keepRow, :);
     
     [pcam.COEFF,pcam.SCORE,pcam.LATENT,pcam.MU,pcam.V,pcam.S] = ppca(subSample, 2);
-
+    
     [pca0.COEFF,pca0.SCORE,pca0.LATENT,pca0.MU,pca0.V,pca0.S] = pca(sigs);
     reconstructed = pca0.SCORE*pca0.COEFF';
     sig2comp = inv(pca0.COEFF);
     %     reconstructedScore = sigs * sig2comp';
     [reconstructed, stats] = imputeUsingFixedComponents(sigDrop, pcam);
-
+    
     
     for i = 1:size(sigs,2)
         meanValue = mean(sigs(:,i));
